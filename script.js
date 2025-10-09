@@ -1,5 +1,5 @@
 // The URL of your local FastAPI endpoint
-const API_URL = 'https://plastic-detector-app-sf11.onrender.com/';
+const API_URL = 'https://shubham1065-plastic-waste-detector.hf.space/predict';
 
 // --- PLASTIC DATA REFERENCE (Used for front-end display) ---
 const PLASTIC_DATA = {
