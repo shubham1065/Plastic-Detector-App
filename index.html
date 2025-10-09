@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plastic Waste Detector</title>
+    <!-- CSS link uses /static/ prefix for FastAPI serving -->
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Dark Mode Toggle Button -->
+        <button id="darkModeToggle">Enable Dark Mode</button>
+
+        <h1>Plastic Waste Classifier</h1>
+        <p>Upload an image to detect the specific polymer type (RIC).</p>
+
+        <!-- Image Upload Input -->
+        <input type="file" id="imageInput" accept="image/*">
+        
+        <!-- Display Area for the uploaded image -->
+        <div id="image-display-area">
+            <img id="uploadedImage" src="" alt="Uploaded Image" style="display:none;">
+        </div>
+
+        <!-- Prediction Button -->
+        <button id="predictButton" disabled>Detect Waste</button>
+
+        <!-- Results Display -->
+        <div id="results" class="results-box" style="display:none;">
+            <p><strong>Status:</strong> <span id="statusMessage">Waiting for prediction...</span></p>
+            <p><strong>Prediction:</strong> <span id="predictedClass"></span></p>
+            <p><strong>Confidence:</strong> <span id="confidence"></span></p>
+            
+            <!-- Specific Polymer Details (Injected by JS) -->
+            <div id="polymerDetails" class="prediction-details">
+                <!-- Polymer information (Full Name, Common Use, Recycling Note) will be inserted here -->
+            </div>
+            
+            <div id="loading" style="display:none;">Processing image and model inference...</div>
+
+            <!-- Toggle Link -->
+            <a href="#" id="toggleReference" class="toggle-link">Know more about all types</a>
+        </div>
+        
+        <!-- Polymer Reference Table (Hidden by default via CSS) -->
+        <div id="referenceSection" class="reference-section">
+            <h2>Polymer Identification Codes</h2>
+            <table class="polymer-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Full Name</th>
+                        <th>Common Uses</th>
+                        <th>Recycling Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- The <td> elements now include data-label for mobile responsiveness -->
+                    <tr>
+                        <td data-label="Code"><strong>PET</strong></td>
+                        <td data-label="Full Name">Polyethylene Terephthalate</td>
+                        <td data-label="Common Uses">Water/soda bottles, clear food packaging, polyester fiber.</td>
+                        <td data-label="Recycling Notes">Widely recycled (RIC #1).</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Code"><strong>PE</strong></td>
+                        <td data-label="Full Name">Polyethylene (HDPE/LDPE)</td>
+                        <td data-label="Common Uses">Milk jugs, detergent bottles, plastic bags, rigid containers.</td>
+                        <td data-label="Recycling Notes">Commonly recycled (RIC #2 or #4).</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Code"><strong>PP</strong></td>
+                        <td data-label="Full Name">Polypropylene</td>
+                        <td data-label="Common Uses">Yogurt tubs, bottle caps, medicine bottles, food containers.</td>
+                        <td data-label="Recycling Notes">Recyclability varies by location (RIC #5).</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Code"><strong>PS</strong></td>
+                        <td data-label="Full Name">Polystyrene</td>
+                        <td data-label="Common Uses">Foam cups, disposable cutlery, CD cases, foam packaging.</td>
+                        <td data-label="Recycling Notes">Rarely recycled curbside (RIC #6).</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Code"><strong>PC</strong></td>
+                        <td data-label="Full Name">Polycarbonate</td>
+                        <td data-label="Common Uses">CDs/DVDs, large water cooler bottles, lenses.</td>
+                        <td data-label="Recycling Notes">Included in 'Others' (RIC #7). Not typically recycled.</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Code"><strong>others</strong></td>
+                        <td data-label="Full Name">Miscellaneous / Composite Plastics</td>
+                        <td data-label="Common Uses">Mixed polymers, multi-layer packaging, non-standard resins.</td>
+                        <td data-label="Recycling Notes">Generally not recyclable via standard programs (RIC #7).</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="note">Note: RIC stands for Resin Identification Code. Proper sorting practices vary by local municipal regulations.</p>
+        </div>
+        
+    </div>
+
+    <!-- JavaScript Logic uses /static/ prefix for FastAPI serving -->
+    <script src="/script.js"></script>
+</body>
+</html>
