@@ -1,0 +1,11 @@
+This file lists the dependencies for your FastAPI server
+fastapi
+uvicorn
+python-multipart
+starlette
+timm
+Pillow
+gunicorn
+torch
+torchvision
+
