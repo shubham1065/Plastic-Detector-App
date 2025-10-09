@@ -15,7 +15,7 @@ import os
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
 MODEL_NAME = 'rexnet_150'
-MODEL_PATH = 'C:/Users/hp/Downloads/plastic_best_model.pth'
+MODEL_PATH = 'plastic_best_model.pth'
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406] # Standard ImageNet mean
 IMAGENET_STD = [0.229, 0.224, 0.225]   # Standard ImageNet std
