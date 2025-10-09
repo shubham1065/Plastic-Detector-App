@@ -173,3 +173,8 @@ async def predict_waste(file: UploadFile = File(...)):
 @app.get("/")
 def home():
     return {"status": "Plastic Detector API is running", "model": MODEL_NAME}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
