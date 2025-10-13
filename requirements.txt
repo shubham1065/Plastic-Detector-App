@@ -1,11 +1,11 @@
-fastapi==0.111.0
-uvicorn==0.30.1
+fastapi
+uvicorn
 python-multipart
 starlette
-timm==1.0.8
+timm
 Pillow
-gunicorn==23.0.0
-torch==2.2.2
+gunicorn
+torch
 torchvision
 numpy
-scipy
+scipygit 
