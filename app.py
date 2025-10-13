@@ -142,33 +142,33 @@ async def predict_waste(file: UploadFile = File(...)):
             # Get the index (position) of the highest probability
             predicted_index = torch.argmax(probabilities).item()
             
+
+            
+        # 4. Post-processing and Result Formatting
+        
+        # Prepare the confidence score for the website
+        confidence_percent = f"{probabilities[predicted_index].item() * 100:.2f}%"
+        
+        # Prepare all confidences for a detailed output
+        all_confidences = {
+            CLASSES[i]: f"{probabilities[i].item():.4f}" for i in range(NUM_CLASSES)
+        }
+        
+        # Create the final response JSON
+        result = {
+            "status": "success",
+            "filename": file.filename,
+            "predicted_class": CLASSES[predicted_index],
+            "confidence": confidence_percent,
+            "all_confidences": all_confidences
+        }
+        print(f"DEBUG: FINAL API RETURN: {result}")
+        
+        return result
+
     except Exception as e:
         print(f"ERROR: Model inference crash: {e}")
         return {"status": "error", "error": f"Model inference failed: {e}"}
-
-        
-    # 4. Post-processing and Result Formatting
-    
-    # Prepare the confidence score for the website
-    confidence_percent = f"{probabilities[predicted_index].item() * 100:.2f}%"
-    
-    # Prepare all confidences for a detailed output
-    all_confidences = {
-        CLASSES[i]: f"{probabilities[i].item():.4f}" for i in range(NUM_CLASSES)
-    }
-    
-    # Create the final response JSON
-    result = {
-        "status": "success",
-        "filename": file.filename,
-        "predicted_class": CLASSES[predicted_index],
-        "confidence": confidence_percent,
-        "all_confidences": all_confidences
-    }
-    print(f"DEBUG: FINAL API RETURN: {result}")
-    
-    return result
-
 # Simple test endpoint to confirm the API is running
 @app.get("/")
 def home():
