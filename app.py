@@ -5,17 +5,14 @@ import torch.nn.functional as F
 from torchvision import transforms 
 from PIL import Image
 import io
-import gdown # NEW: Library for downloading files from Google Drive
+import gdown 
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles 
 from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
-# We are removing the redundant numpy import from here as it's now in requirements.txt
 
-# --- CRITICAL CONFIGURATION ---
-# IMPORTANT: REPLACE 'YOUR_GOOGLE_DRIVE_FILE_ID' with the actual ID you obtained.
-GOOGLE_DRIVE_FILE_ID = 'YOUR_GOOGLE_DRIVE_FILE_ID' # <-- REPLACE THIS!
+GOOGLE_DRIVE_FILE_ID = 'https://drive.google.com/file/d/1Xs_uFpnStBmN86Tq67VtdXHA59Gn1gpI/view?usp=sharing'
 MODEL_PATH = 'plastic_best_model.pth' # Relative path where the file will be saved
 
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
@@ -34,7 +31,7 @@ def load_plastic_model():
         
         # Download the file using gdown
         try:
-            gdown.download(id='https://drive.google.com/file/d/1Xs_uFpnStBmN86Tq67VtdXHA59Gn1gpI/view?usp=sharing', output=MODEL_PATH, quiet=False)
+            gdown.download(id=GOOGLE_DRIVE_FILE_ID, output=MODEL_PATH, quiet=False)
             print("INFO: Model download successful.")
         except Exception as e:
             # If download fails, we must stop the app
