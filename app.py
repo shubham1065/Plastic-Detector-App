@@ -15,7 +15,7 @@ CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others']
 NUM_CLASSES = len(CLASSES) 
 
 # Changed model name from 'rexnet_150' to a memory-efficient MobileNet
-MODEL_NAME = 'mobilenetv2_100' 
+MODEL_NAME = 'mobilenetv3_small_050'  
 MODEL_PATH = 'mobilenetv3_model.pth'
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
