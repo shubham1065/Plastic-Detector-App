@@ -27,26 +27,31 @@ INPUT_SIZE = 224
 # In app.py, ONLY replace the existing load_plastic_model function with this:
 
 def load_plastic_model():
-    """Forces PyTorch to load partial weights by ignoring naming conflicts (strict=False)."""
+    """Forces PyTorch to load partial weights by ignoring name conflicts and manually adjusting the classifier size."""
     
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory.")
+        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
 
     try:
         print("INFO: Initializing MobileNetV3 architecture...")
         
-        # 1. Load the standard MobileNetV3 architecture
+        # 1. Load the MobileNetV3 architecture (this is the base blueprint)
         model = timm.create_model(
             model_name='mobilenetv3_small_050',
             pretrained=False, 
             num_classes=NUM_CLASSES
         )
 
-        # 2. Load the state dictionary (weights)
+        # 2. ***CRITICAL FIX***: Manually override the classification layer size 
+        # to match the 128 features present in your tiny weights file ([6, 128] vs [6, 1024]).
+        # torch.nn.Linear expects (input_features, output_features)
+        model.classifier = torch.nn.Linear(128, NUM_CLASSES) 
+
+        # 3. Load the state dictionary (weights)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
         
-        # 3. ***CRITICAL FIX***: Load weights using strict=False to ignore size/name mismatches
-        # This forces the load of the layers that DO match, ignoring the rest.
+        # 4. Load weights using strict=False to ignore name mismatches (the generic layer names)
+        # This is essential because your custom file doesn't match the standard layer names.
         model.load_state_dict(state_dict, strict=False) 
 
         model.eval() 
