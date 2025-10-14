@@ -9,4 +9,3 @@ torch
 torchvision
 numpy
 scipy
-gdown

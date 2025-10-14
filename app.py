@@ -1,51 +1,46 @@
-import os
 import torch
 import timm 
 import torch.nn.functional as F
 from torchvision import transforms 
 from PIL import Image
 import io
-import gdown 
+import os
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles 
 from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
 
-GOOGLE_DRIVE_FILE_ID = '1Xs_uFpnStBmN86Tq67VtdXHA59Gn1gpI'
-MODEL_PATH = 'plastic_best_model.pth' # Relative path where the file will be saved
-
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
-MODEL_NAME = 'rexnet_150'
+
+# Changed model name from 'rexnet_150' to a memory-efficient MobileNet
+MODEL_NAME = 'mobilenetv2_100' 
+MODEL_PATH = 'mobilenetv3_model.pth'
+
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
 IMAGENET_STD = [0.229, 0.224, 0.225]   
 INPUT_SIZE = 224 
+# ----------------------------------------------------
 
-# --- 2. MODEL DOWNLOAD AND LOADING FUNCTION ---
+# --- 2. MODEL LOADING FUNCTION ---
 def load_plastic_model():
-    """Checks for model file, downloads if missing, and loads weights."""
+    """Loads the MobileNet architecture and state dict directly from the repository."""
     
     if not os.path.exists(MODEL_PATH):
-        print(f"INFO: Model file '{MODEL_PATH}' not found. Downloading from Google Drive...")
-        
-        # Download the file using gdown
-        try:
-            gdown.download(id=GOOGLE_DRIVE_FILE_ID, output=MODEL_PATH, quiet=False)
-            print("INFO: Model download successful.")
-        except Exception as e:
-            # If download fails, we must stop the app
-            raise RuntimeError(f"FATAL ERROR: Could not download model from Google Drive. Check ID and file sharing settings. Details: {e}")
+        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
 
     try:
-        # Create the model architecture
+        print("INFO: Initializing MobileNet model architecture...")
+        
+        # Create the MobileNet architecture
         model = timm.create_model(
             model_name=MODEL_NAME, 
             pretrained=False, 
             num_classes=NUM_CLASSES
         )
         
-        # Load the state dictionary (weights) onto the CPU
+        # Load the weights onto the CPU (This step is now fast and uses minimal memory)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
         model.load_state_dict(state_dict)
 
@@ -142,9 +137,5 @@ async def predict_waste(file: UploadFile = File(...)):
         print(f"ERROR: Model inference crash: {e}")
         return {"status": "error", "error": f"Model inference failed: {e}"}
 
-
-@app.get("/")
-def home():
-    return {"status": "Plastic Detector API is running", "model": MODEL_NAME}
 
 
