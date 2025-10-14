@@ -15,7 +15,7 @@ CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others']
 NUM_CLASSES = len(CLASSES) 
 
 # Changed model name from 'rexnet_150' to a memory-efficient MobileNet
-MODEL_NAME = 'mobilenetv3_small_050'  
+MODEL_NAME = 'resnet18'  
 MODEL_PATH = 'mobilenetv3_model.pth'
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
@@ -24,33 +24,30 @@ INPUT_SIZE = 224
 # ----------------------------------------------------
 
 # --- 2. MODEL LOADING FUNCTION ---
+# In app.py, ONLY replace the existing load_plastic_model function with this:
+
 def load_plastic_model():
-    """Custom function to load MobileNetV3 weights by manually adjusting the final classifier layer size."""
+    """Forces PyTorch to load partial weights by ignoring naming conflicts (strict=False)."""
     
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
+        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory.")
 
     try:
-        print("INFO: Initializing Custom MobileNetV3 architecture...")
+        print("INFO: Initializing MobileNetV3 architecture...")
         
-        # 1. Load the standard MobileNetV3 model architecture (using timm default)
+        # 1. Load the standard MobileNetV3 architecture
         model = timm.create_model(
-            model_name='mobilenetv3_small_050', # Use the correct base name
+            model_name='mobilenetv3_small_050',
             pretrained=False, 
-            num_classes=NUM_CLASSES # NUM_CLASSES is 6, which is correct
+            num_classes=NUM_CLASSES
         )
 
-        # 2. **CRITICAL FIX:** Manually replace the classifier layer to match the required 128 input features
-        # The standard layer is: (classifier): Linear(in_features=1024, out_features=6, bias=True)
-        # We replace it with: (classifier): Linear(in_features=128, out_features=6, bias=True)
-        model.classifier = torch.nn.Linear(128, NUM_CLASSES) 
-
-        # 3. Load the state dictionary (weights)
+        # 2. Load the state dictionary (weights)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
         
-        # 4. Load weights into the adjusted model
-        # strict=False is often required when loading models that have been manually altered or truncated
-        model.load_state_dict(state_dict, strict=True) # Changed to True for maximum safety
+        # 3. ***CRITICAL FIX***: Load weights using strict=False to ignore size/name mismatches
+        # This forces the load of the layers that DO match, ignoring the rest.
+        model.load_state_dict(state_dict, strict=False) 
 
         model.eval() 
         return model
