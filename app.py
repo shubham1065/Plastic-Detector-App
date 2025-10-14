@@ -25,24 +25,32 @@ INPUT_SIZE = 224
 
 # --- 2. MODEL LOADING FUNCTION ---
 def load_plastic_model():
-    """Loads the MobileNet architecture and state dict directly from the repository."""
+    """Custom function to load MobileNetV3 weights by manually adjusting the final classifier layer size."""
     
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
 
     try:
-        print("INFO: Initializing MobileNet model architecture...")
+        print("INFO: Initializing Custom MobileNetV3 architecture...")
         
-        # Create the MobileNet architecture
+        # 1. Load the standard MobileNetV3 model architecture (using timm default)
         model = timm.create_model(
-            model_name=MODEL_NAME, 
+            model_name='mobilenetv3_small_050', # Use the correct base name
             pretrained=False, 
-            num_classes=NUM_CLASSES
+            num_classes=NUM_CLASSES # NUM_CLASSES is 6, which is correct
         )
-        
-        # Load the weights onto the CPU (This step is now fast and uses minimal memory)
+
+        # 2. **CRITICAL FIX:** Manually replace the classifier layer to match the required 128 input features
+        # The standard layer is: (classifier): Linear(in_features=1024, out_features=6, bias=True)
+        # We replace it with: (classifier): Linear(in_features=128, out_features=6, bias=True)
+        model.classifier = torch.nn.Linear(128, NUM_CLASSES) 
+
+        # 3. Load the state dictionary (weights)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
-        model.load_state_dict(state_dict)
+        
+        # 4. Load weights into the adjusted model
+        # strict=False is often required when loading models that have been manually altered or truncated
+        model.load_state_dict(state_dict, strict=True) # Changed to True for maximum safety
 
         model.eval() 
         return model
