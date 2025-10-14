@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
 
-GOOGLE_DRIVE_FILE_ID = 'https://drive.google.com/file/d/1Xs_uFpnStBmN86Tq67VtdXHA59Gn1gpI/view?usp=sharing'
+GOOGLE_DRIVE_FILE_ID = '1Xs_uFpnStBmN86Tq67VtdXHA59Gn1gpI'
 MODEL_PATH = 'plastic_best_model.pth' # Relative path where the file will be saved
 
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
