@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn # Must import nn
+import torch.nn as nn
 import timm 
 import torch.nn.functional as F
 from torchvision import transforms 
@@ -15,78 +15,78 @@ from starlette.middleware.cors import CORSMiddleware
 # --- 1. CRITICAL CONFIGURATION ---
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
-MODEL_NAME = 'CustomTinyMobileNet' # Updated model name for clarity
-MODEL_PATH = 'mobilenetv3_model.pth' # Using the new, small file name
-
+MODEL_NAME = 'mobilenetv3_small_050' # Use base name; we fix sizes dynamically
+MODEL_PATH = 'mobilenet.pth' # Small model file name
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
 IMAGENET_STD = [0.229, 0.224, 0.225]   
 INPUT_SIZE = 224 
 # ----------------------------------------------------
 
-# --- NEW: CUSTOM MODEL ARCHITECTURE (Matches the 128-Feature Requirement) ---
+# --- NEW: CUSTOM MODEL ARCHITECTURE (Features are fixed later) ---
 class TinyMobileNet(nn.Module):
     """
-    Custom architecture defined to match the structure of the provided weights file.
-    It uses the standard MobileNetV3 backbone and forces the final classification 
-    layer to have the necessary 128 input features, which the weights expect.
+    Custom architecture using MobileNetV3 backbone but with a dynamic final layer 
+    to match the exact feature count outputted by the backbone at runtime.
     """
-    def __init__(self, num_classes=6):
+    def __init__(self, in_features, num_classes=6):
         super().__init__()
-        # Load the features backbone from timm, excluding the original classifier head (num_classes=0)
-        # CRITICAL FIX: Changing to 'mobilenetv3_small_075' to ensure the backbone outputs 576 features.
+        # Load the features backbone from timm, excluding the original classifier head
         self.features = timm.create_model(
-            'mobilenetv3_small_075',
+            'mobilenetv3_small_050',
             pretrained=False, 
-            num_classes=0 # IMPORTANT: Load only the feature extractor, not the head
+            num_classes=0 
         ).forward_features
 
-        # Global average pooling layer (reduces spatial dimensions)
         self.global_pool = nn.AdaptiveAvgPool2d(1)
 
-        # Final custom classifier matching the required input/output shapes:
-        # The first layer must accept the 576 features output by the backbone.
+        # Final custom classifier layer is built DYNAMICALLY in the load function.
+        # We define a placeholder to be replaced later.
         self.classifier = nn.Sequential(
-            # This is the layer that MUST match the [6, 128] shape in the weights file
-            nn.Linear(576, 128), # Using the correct output channel size (576) of the small mobilenet
+            nn.Linear(in_features, 128), # DYNAMIC: in_features will be set at runtime
             nn.Hardswish(inplace=True),
             nn.Dropout(p=0.2, inplace=True),
-            nn.Linear(128, num_classes) # Final layer from 128 features to 6 classes
+            nn.Linear(128, num_classes)
         )
 
-
     def forward(self, x):
-        # 1. Pass through feature extractor backbone
         x = self.features(x)
-        
-        # 2. Global Pooling (converts C x H x W to C x 1 x 1)
         x = self.global_pool(x)
-        
-        # 3. Flatten the tensor for the classifier (converts C x H x W to C)
-        # CRITICAL: This flattens the 576 channels into 576 features.
         x = torch.flatten(x, 1)
-        
-        # 4. Pass through custom classifier head
         x = self.classifier(x)
         return x
 
-# --- 2. MODEL DOWNLOAD AND LOADING FUNCTION ---
+# --- 2. MODEL DOWNLOAD AND LOADING FUNCTION (DYNAMIC SIZE DISCOVERY) ---
 def load_plastic_model():
-    """Loads the custom TinyMobileNet architecture and state dict."""
+    """Discovers the feature size dynamically, rebuilds the classifier, and loads the model."""
     
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
+        raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory.")
 
+    # --- 1. Size Discovery Pass ---
+    # Create a base model structure to find the true output size of the backbone.
+    base_model = timm.create_model('mobilenetv3_small_050', pretrained=False, num_classes=0)
+    
+    # Run a dummy tensor through the backbone to find the output channel size (576, 432, etc.)
     try:
-        print("INFO: Initializing Custom TinyMobileNet architecture...")
-        
-        # Instantiate the custom model class
-        model = TinyMobileNet(num_classes=NUM_CLASSES) 
+        dummy_input = torch.randn(1, 3, INPUT_SIZE, INPUT_SIZE)
+        # Get output from the feature extractor
+        dummy_output = base_model.forward_features(dummy_input)
+        # Use pooling to flatten the output to a channel count
+        final_feature_count = dummy_output.shape[1] 
+        print(f"INFO: Determined feature count needed by classifier: {final_feature_count}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to determine model feature size. Error: {e}")
+
+    # --- 2. Model Instantiation & Layer Replacement ---
+    try:
+        # Instantiate the custom model using the dynamically discovered size
+        model = TinyMobileNet(in_features=final_feature_count, num_classes=NUM_CLASSES) 
 
         # Load the state dictionary (weights)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
         
-        # CRITICAL FIX: Load weights using strict=False to ignore name mismatches, 
-        # and rely on the model structure to match the size.
+        # Load weights using strict=False to ignore name mismatches, 
+        # as the sizes are now correct (576 or 432 features into 576x128 weights).
         model.load_state_dict(state_dict, strict=False) 
 
         model.eval() 
