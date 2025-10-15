@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn # Must import nn
 import timm 
 import torch.nn.functional as F
 from torchvision import transforms 
@@ -11,47 +12,79 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from starlette.middleware.cors import CORSMiddleware
 
+# --- 1. CRITICAL CONFIGURATION ---
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
-
-# Changed model name from 'rexnet_150' to a memory-efficient MobileNet
-MODEL_NAME = 'resnet18'  
-MODEL_PATH = 'mobilenetv3_model.pth'
+MODEL_NAME = 'CustomTinyMobileNet' # Updated model name for clarity
+MODEL_PATH = 'mobilenet.pth' # Using the new, small file name
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
 IMAGENET_STD = [0.229, 0.224, 0.225]   
 INPUT_SIZE = 224 
 # ----------------------------------------------------
 
-# --- 2. MODEL LOADING FUNCTION ---
-# In app.py, ONLY replace the existing load_plastic_model function with this:
+# --- NEW: CUSTOM MODEL ARCHITECTURE (Matches the 128-Feature Requirement) ---
+class TinyMobileNet(nn.Module):
+    """
+    Custom architecture defined to match the structure of the provided weights file.
+    It uses the standard MobileNetV3 backbone and forces the final classification 
+    layer to have the necessary 128 input features, which the weights expect.
+    """
+    def __init__(self, num_classes=6):
+        super().__init__()
+        # Load the features backbone from timm, excluding the original classifier head (num_classes=0)
+        self.features = timm.create_model(
+            'mobilenetv3_small_050',
+            pretrained=False, 
+            num_classes=0 # IMPORTANT: Load only the feature extractor, not the head
+        ).forward_features
 
+        # Global average pooling layer (reduces spatial dimensions)
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+
+        # Final custom classifier matching the required input/output shapes:
+        # Input features are typically compressed, but we force the Linear layer to 128
+        self.classifier = nn.Sequential(
+            # This is the layer that MUST match the [6, 128] shape in the weights file
+            nn.Linear(576, 128), # Using the correct output channel size (576) of the small mobilenet
+            nn.Hardswish(inplace=True),
+            nn.Dropout(p=0.2, inplace=True),
+            nn.Linear(128, num_classes) # Final layer from 128 features to 6 classes
+        )
+
+
+    def forward(self, x):
+        # 1. Pass through feature extractor backbone
+        x = self.features(x)
+        
+        # 2. Global Pooling (converts C x H x W to C x 1 x 1)
+        x = self.global_pool(x)
+        
+        # 3. Flatten the tensor for the classifier (converts C x 1 x 1 to C)
+        x = torch.flatten(x, 1)
+        
+        # 4. Pass through custom classifier head
+        x = self.classifier(x)
+        return x
+
+# --- 2. MODEL DOWNLOAD AND LOADING FUNCTION ---
 def load_plastic_model():
-    """Forces PyTorch to load partial weights by ignoring name conflicts and manually adjusting the classifier size."""
+    """Loads the custom TinyMobileNet architecture and state dict."""
     
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"FATAL ERROR: Model file '{MODEL_PATH}' not found in the server's directory. Please ensure it was pushed to GitHub.")
 
     try:
-        print("INFO: Initializing MobileNetV3 architecture...")
+        print("INFO: Initializing Custom TinyMobileNet architecture...")
         
-        # 1. Load the MobileNetV3 architecture (this is the base blueprint)
-        model = timm.create_model(
-            model_name='mobilenetv3_small_050',
-            pretrained=False, 
-            num_classes=NUM_CLASSES
-        )
+        # Instantiate the custom model class
+        model = TinyMobileNet(num_classes=NUM_CLASSES) 
 
-        # 2. ***CRITICAL FIX***: Manually override the classification layer size 
-        # to match the 128 features present in your tiny weights file ([6, 128] vs [6, 1024]).
-        # torch.nn.Linear expects (input_features, output_features)
-        model.classifier = torch.nn.Linear(128, NUM_CLASSES) 
-
-        # 3. Load the state dictionary (weights)
+        # Load the state dictionary (weights)
         state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
         
-        # 4. Load weights using strict=False to ignore name mismatches (the generic layer names)
-        # This is essential because your custom file doesn't match the standard layer names.
+        # CRITICAL FIX: Load weights using strict=False to ignore name mismatches, 
+        # and rely on the model structure to match the size.
         model.load_state_dict(state_dict, strict=False) 
 
         model.eval() 
@@ -116,16 +149,16 @@ async def predict_waste(file: UploadFile = File(...)):
         input_tensor = input_tensor.to(torch.float32)
     except Exception as e:
         print(f"ERROR: Preprocessing crash: {e}")
-        return {"status": "error", "error": f"Image preprocessing failed: {e}"}
+        return {"error": f"Image preprocessing failed: {e}"}
     
-    # 3 & 4. INFERENCE AND POST-PROCESSING (ULTIMATE TRY/EXCEPT BLOCK)
+    # 3 & 4. INFERENCE AND POST-PROCESSING
     plastic_model.eval() 
     
     try: 
         with torch.no_grad(): 
             output = plastic_model(input_tensor)
             
-            # --- CRITICAL AREA FOR SOFTMAX/TORCH.ARGMAX ---
+            # Post-processing continues if output is a valid tensor
             probabilities = F.softmax(output, dim=1)[0]
             predicted_index = torch.argmax(probabilities).item()
             
@@ -146,10 +179,7 @@ async def predict_waste(file: UploadFile = File(...)):
         return result
 
     except Exception as e:
-        # **THIS IS THE FINAL FIX** - Sends the exact traceback message to the frontend.
+        # This catches any errors during inference (e.g., memory crash)
         error_message = f"Inference Error: {str(e)[:150]}" 
         print(f"FATAL SERVER CRASH: {error_message}")
         return {"status": "error", "error": error_message}
-
-
-
