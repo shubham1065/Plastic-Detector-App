@@ -116,14 +116,16 @@ async def predict_waste(file: UploadFile = File(...)):
         input_tensor = input_tensor.to(torch.float32)
     except Exception as e:
         print(f"ERROR: Preprocessing crash: {e}")
-        return {"error": f"Image preprocessing failed: {e}"}
+        return {"status": "error", "error": f"Image preprocessing failed: {e}"}
     
-    # 3 & 4. INFERENCE AND POST-PROCESSING
+    # 3 & 4. INFERENCE AND POST-PROCESSING (ULTIMATE TRY/EXCEPT BLOCK)
     plastic_model.eval() 
     
     try: 
         with torch.no_grad(): 
             output = plastic_model(input_tensor)
+            
+            # --- CRITICAL AREA FOR SOFTMAX/TORCH.ARGMAX ---
             probabilities = F.softmax(output, dim=1)[0]
             predicted_index = torch.argmax(probabilities).item()
             
@@ -144,8 +146,10 @@ async def predict_waste(file: UploadFile = File(...)):
         return result
 
     except Exception as e:
-        print(f"ERROR: Model inference crash: {e}")
-        return {"status": "error", "error": f"Model inference failed: {e}"}
+        # **THIS IS THE FINAL FIX** - Sends the exact traceback message to the frontend.
+        error_message = f"Inference Error: {str(e)[:150]}" 
+        print(f"FATAL SERVER CRASH: {error_message}")
+        return {"status": "error", "error": error_message}
 
 
 
