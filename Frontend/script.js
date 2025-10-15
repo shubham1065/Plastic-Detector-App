@@ -1,4 +1,5 @@
-// The URL of your local FastAPI endpoint
+// The URL of your live Render API endpoint
+// This must be set to your actual live Render URL, e.g., 'https://plastic-detector-api.onrender.com/predict'
 const API_URL = 'https://plastic-detector-api.onrender.com/predict';
 
 // --- PLASTIC DATA REFERENCE (Used for front-end display) ---
@@ -95,7 +96,7 @@ imageInput.addEventListener('change', function(event) {
     // Reset results display
     resultsBox.style.display = 'none';
     statusMessageElement.textContent = 'Waiting for prediction...';
-    polymerDetailsDiv.innerHTML = '<!-- Polymer information will be inserted here -->';
+    polymerDetailsDiv.innerHTML = '';
     referenceSection.style.display = 'none'; // Ensure table is hidden on new upload
 
     if (file) {
@@ -127,10 +128,16 @@ predictButton.addEventListener('click', async () => {
     formData.append('file', file);
 
     try {
-        const response = await fetch(API_URL, {
+        // --- FINAL CACHE-BYPASS FIX ---
+        // 1. Define the unique URL (Appends timestamp to bypass browser/proxy caching)
+        const uniqueApiUrl = `${API_URL}?t=${Date.now()}`;
+
+        // 2. Use the unique URL in the fetch call
+        const response = await fetch(uniqueApiUrl, {
             method: 'POST',
             body: formData,
         });
+        // --- END OF CACHE-BYPASS FIX ---
 
         const data = await response.json();
 
@@ -150,12 +157,14 @@ predictButton.addEventListener('click', async () => {
                 <p><strong>Common Uses:</strong> ${details.uses}</p>
                 <p><strong>Recycling Status:</strong> ${details.notes}</p>
             `;
+            polymerDetailsDiv.style.display = 'block'; // Make sure details are visible
+
         } else {
             // Handle API errors (status != 200 or status=error)
             statusMessageElement.textContent = 'Error during prediction.';
             predictedClassElement.textContent = data.error || 'Server processing failed.';
             confidenceElement.textContent = 'Check server logs.';
-            polymerDetailsDiv.innerHTML = '';
+            polymerDetailsDiv.style.display = 'none';
         }
     } catch (error) {
         // Handle Network/CORS failure
@@ -163,7 +172,7 @@ predictButton.addEventListener('click', async () => {
         statusMessageElement.textContent = 'Network Error';
         predictedClassElement.textContent = 'Could not reach API.';
         confidenceElement.textContent = 'Ensure backend is running.';
-        polymerDetailsDiv.innerHTML = '';
+        polymerDetailsDiv.style.display = 'none';
     } finally {
         // UI Feedback: Hide loading indicator and re-enable button
         loadingIndicator.style.display = 'none';
@@ -176,13 +185,13 @@ predictButton.addEventListener('click', async () => {
 
 document.getElementById('toggleReference').addEventListener('click', function(e) {
     e.preventDefault();
-    const isHidden = referenceSection.style.display === 'none';
+    const isHidden = referenceSection.style.display === 'none' || referenceSection.style.display === '';
     
     if (isHidden) {
         referenceSection.style.display = 'block';
-        this.textContent = 'Hide detailed information';
+        this.textContent = 'Hide detailed information «';
     } else {
         referenceSection.style.display = 'none';
-        this.textContent = 'Know more about all types';
+        this.textContent = 'Know more about all types »';
     }
 });
