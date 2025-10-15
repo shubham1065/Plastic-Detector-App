@@ -16,7 +16,7 @@ from starlette.middleware.cors import CORSMiddleware
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
 MODEL_NAME = 'CustomTinyMobileNet' # Updated model name for clarity
-MODEL_PATH = 'mobilenet.pth' # Using the new, small file name
+MODEL_PATH = 'mobilenetv3_model.pth' # Using the new, small file name
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
 IMAGENET_STD = [0.229, 0.224, 0.225]   
