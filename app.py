@@ -16,7 +16,7 @@ from starlette.middleware.cors import CORSMiddleware
 CLASSES = ['PE', 'PS', 'PC', 'PET', 'PP', 'others'] 
 NUM_CLASSES = len(CLASSES) 
 MODEL_NAME = 'mobilenetv3_small_050' # Use base name; we fix sizes dynamically
-MODEL_PATH = 'mobilenet.pth' # Small model file name
+MODEL_PATH = 'mobilenetv3_model.pth' # Small model file name
 IMAGENET_MEAN = [0.485, 0.456, 0.406] 
 IMAGENET_STD = [0.229, 0.224, 0.225]   
 INPUT_SIZE = 224 
