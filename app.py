@@ -33,8 +33,9 @@ class TinyMobileNet(nn.Module):
     def __init__(self, num_classes=6):
         super().__init__()
         # Load the features backbone from timm, excluding the original classifier head (num_classes=0)
+        # CRITICAL FIX: Changing to 'mobilenetv3_small_075' to ensure the backbone outputs 576 features.
         self.features = timm.create_model(
-            'mobilenetv3_small_050',
+            'mobilenetv3_small_075',
             pretrained=False, 
             num_classes=0 # IMPORTANT: Load only the feature extractor, not the head
         ).forward_features
@@ -43,7 +44,7 @@ class TinyMobileNet(nn.Module):
         self.global_pool = nn.AdaptiveAvgPool2d(1)
 
         # Final custom classifier matching the required input/output shapes:
-        # Input features are typically compressed, but we force the Linear layer to 128
+        # The first layer must accept the 576 features output by the backbone.
         self.classifier = nn.Sequential(
             # This is the layer that MUST match the [6, 128] shape in the weights file
             nn.Linear(576, 128), # Using the correct output channel size (576) of the small mobilenet
@@ -60,7 +61,8 @@ class TinyMobileNet(nn.Module):
         # 2. Global Pooling (converts C x H x W to C x 1 x 1)
         x = self.global_pool(x)
         
-        # 3. Flatten the tensor for the classifier (converts C x 1 x 1 to C)
+        # 3. Flatten the tensor for the classifier (converts C x H x W to C)
+        # CRITICAL: This flattens the 576 channels into 576 features.
         x = torch.flatten(x, 1)
         
         # 4. Pass through custom classifier head
